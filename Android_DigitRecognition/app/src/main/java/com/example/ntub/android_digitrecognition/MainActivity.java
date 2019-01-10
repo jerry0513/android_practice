@@ -36,11 +36,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     static final int REQUEST_TAKE_PHOTO = 1;
 
-    Button btn_openCamera;
+    Button btn_openCamera, btn_recognize;
     ImageView iv_mImageView;
     Spinner sp_player, sp_par;
     Bitmap imageBitmap;
     Camera mCamera;
+    Recognize recognize;
     String mCurrentPhotoPath;
 
 
@@ -48,12 +49,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        initView();
+    }
 
+    private void initView() {
         btn_openCamera = findViewById(R.id.btn_openCamera);
+        btn_recognize = findViewById(R.id.btn_recognize);
         iv_mImageView = findViewById(R.id.iv_mImageView);
         sp_player = findViewById(R.id.sp_player);
         sp_par = findViewById(R.id.sp_par);
         btn_openCamera.setOnClickListener(this);
+        btn_recognize.setOnClickListener(this);
         sp_player.setOnItemSelectedListener(this);
         sp_par.setOnItemSelectedListener(this);
 
@@ -73,7 +79,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //            iv_mImageView.setImageBitmap(imageBitmap);
             setImageView();
             galleryAddPic();
-
         }
     }
 
@@ -84,7 +89,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 openCamera();
                 break;
             case R.id.btn_recognize:
-
+                try {
+                    Uri contentUri = Uri.fromFile(new File(mCurrentPhotoPath));
+                    recognize = new Recognize(this, contentUri);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 break;
         }
     }
