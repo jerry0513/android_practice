@@ -36,6 +36,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     static final int REQUEST_TAKE_PHOTO = 1;
 
+    int playerNum, parNum;
     Button btn_openCamera, btn_recognize;
     ImageView iv_mImageView;
     Spinner sp_player, sp_par;
@@ -90,8 +91,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.btn_recognize:
                 try {
-                    Uri contentUri = Uri.fromFile(new File(mCurrentPhotoPath));
-                    recognize = new Recognize(this, contentUri);
+//                    Uri contentUri = Uri.fromFile(new File(mCurrentPhotoPath));
+//                    recognize = new Recognize(this, contentUri);
+                    recognize = new Recognize(this);
+                    iv_mImageView.setImageBitmap(recognize.getMImage());
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -179,10 +182,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
         switch (parent.getId()) {
             case R.id.sp_player:
-
+                this.playerNum = Integer.parseInt((String) parent.getItemAtPosition(position));
                 break;
             case R.id.sp_par:
-
+                this.parNum = Integer.parseInt((String) parent.getItemAtPosition(position));
                 break;
         }
     }
