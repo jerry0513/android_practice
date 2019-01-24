@@ -7,9 +7,13 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 
+import org.opencv.android.Utils;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Size;
+import org.opencv.imgproc.Imgproc;
 import org.tensorflow.lite.Interpreter;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,23 +21,19 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.lang.Object;
-import java.util.Collections;
 import java.util.List;
-
-import static android.graphics.Bitmap.Config.ALPHA_8;
 
 
 public class Recognize {
 
     private static final String MODEL_PATH = "mnist.tflite";
-
     protected Interpreter tflite;
-    Bitmap mBitmap;
-    int size = 4;
-    int hole = 9;
-    int averageGray;
+    private int size = 1;
+    private int hole = 1;
+    private int averageGray;
+
     /** Dimensions of inputs. */
     private static final int DIM_BATCH_SIZE = 1;
     private static final int DIM_PIXEL_SIZE = 1;
@@ -56,6 +56,7 @@ public class Recognize {
 
     private int[] result(Activity activity) throws IOException {
         Bitmap bitmap = getImageFromAssetManager(activity);
+
         int indexMax;
         result = new int[size][hole];
         for (int i = 0; i < size; i++) {
@@ -71,12 +72,13 @@ public class Recognize {
                 result[i][j] = indexMax;
             }
         }
+
 //        convertBitmapToByteBuffer(bitmap);
 //        this.mBitmap = Bitmap.createScaledBitmap(bitmap, 1000, 1000, true);
 //        tflite.run(imgData, result);
 //        android.util.Log.e("-=-=-=-",
 //                "run(): result = " + Arrays.toString(result[0]));
-        displayResult();
+//        displayResult();
         return result[0];
     }
 
@@ -91,16 +93,15 @@ public class Recognize {
 
     private Bitmap getImageFromAssetManager(Activity activity) throws IOException {
         AssetManager am = activity.getAssets();
-        InputStream is = am.open("score2.jpg");
+        InputStream is = am.open("333.jpg");
         Bitmap bitmap = BitmapFactory.decodeStream(is);
         return bitmap;
     }
 
     private void convertBitmapToByteBuffer(Bitmap bitmap) {
-        if (imgData == null) {
-            return;
-        }
+        if (imgData == null) { return; }
         imgData.rewind();
+
         bitmap = Bitmap.createScaledBitmap(bitmap, 28, 28, true);
         bitmap.getPixels(imgPixels, 0, bitmap.getWidth(), 0, 0,
                 bitmap.getWidth(), bitmap.getHeight());
@@ -108,12 +109,22 @@ public class Recognize {
         int pixel = 0;
         for (int i = 0; i < DIM_IMG_SIZE_X; ++i) {
             for (int j = 0; j < DIM_IMG_SIZE_Y; ++j) {
-                if ( i < 2 || j < 2 || i > 25 || j > 25) {
-                    imgData.putFloat(Color.BLACK);
-                } else {
-                    imgPixels[pixel] = convertToGreyScale(imgPixels[pixel]);
-                    imgData.putFloat(imgPixels[pixel]);
-                }
+//                if ( i < 2 || j < 2 || i > 25 || j > 25) {
+//                    imgData.putFloat(Color.BLACK);
+//                } else {
+//                    imgPixels[pixel] = convertToGreyScale(imgPixels[pixel]);
+//                    imgData.putFloat(imgPixels[pixel]);
+//                }
+
+//                if ( i < 1 || j < 1 || i > 26 || j > 26) {
+//                    imgData.putFloat(Color.BLACK);
+//                } else {
+//                    imgPixels[pixel] = convertToGreyScale(imgPixels[pixel]);
+//                    imgData.putFloat(imgPixels[pixel]);
+//                }
+
+                imgPixels[pixel] = invertGrey(convertToGreyScale(imgPixels[pixel]));
+                imgData.putFloat(imgPixels[pixel]);
                 pixel += 1;
             }
         }
@@ -125,8 +136,11 @@ public class Recognize {
         int B = Color.blue(color);
         int gray = (int) (0.2989 * R + 0.5870 * G + 0.1140 * B);
 //        android.util.Log.e("colorG", String.valueOf(gray));
-        int negative = (gray > this.averageGray)? Color.BLACK: Color.WHITE;
-        return negative;
+        return gray;
+    }
+
+    private int invertGrey(int color) {
+        return (color > this.averageGray)? Color.BLACK: Color.WHITE;
     }
 
     private int averagePixelColor() {
@@ -159,6 +173,29 @@ public class Recognize {
         Bitmap cropBySizeHoleBitmap = Bitmap.createBitmap(bitmap,
                 coordinateX, coordinateY, cropWidth, cropHeight);
         return cropBySizeHoleBitmap;
+    }
+
+    private Bitmap getNumberInImage(Bitmap bitmap) {
+        Mat mat = new Mat();
+        Utils.bitmapToMat(bitmap, mat);
+
+        //Blur
+        Size size = new Size(11, 11);
+        Imgproc.GaussianBlur(mat,mat, size, 0);
+
+        //Canny
+        Imgproc.Canny(mat, mat, 20, 120);
+
+        //FindContours
+        List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(mat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        for (int contourIdx = 0; contourIdx < contours.size(); contourIdx++) {
+
+        }
+
+        return bitmap;
     }
 
     public Bitmap getMImage() {
