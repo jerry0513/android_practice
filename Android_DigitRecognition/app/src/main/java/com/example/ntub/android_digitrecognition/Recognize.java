@@ -7,9 +7,13 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 
+import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
+import org.opencv.core.Rect;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.tensorflow.lite.Interpreter;
@@ -33,6 +37,8 @@ public class Recognize {
     private int size = 1;
     private int hole = 1;
     private int averageGray;
+    private Activity activity;
+    Mat imageMat;
 
     /** Dimensions of inputs. */
     private static final int DIM_BATCH_SIZE = 1;
@@ -47,6 +53,7 @@ public class Recognize {
     private int[][] result;
 
     public Recognize(Activity activity) throws IOException {
+        this.activity = activity;
         tflite = new Interpreter(loadModelFile(activity));
         imgData = ByteBuffer.allocateDirect(
                 4 * DIM_BATCH_SIZE * DIM_IMG_SIZE_X * DIM_IMG_SIZE_Y * DIM_PIXEL_SIZE);
@@ -62,6 +69,7 @@ public class Recognize {
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < hole; j++) {
                 Bitmap cropBySizeHoleBitmap = cropBySizeHole(bitmap, i, j);
+                cropBySizeHoleBitmap = getNumberInImage(cropBySizeHoleBitmap);
                 convertBitmapToByteBuffer(cropBySizeHoleBitmap);
                 tflite.run(imgData, recognizeResult);
                 indexMax = getArrayMaxIndex(recognizeResult[0]);
@@ -93,7 +101,7 @@ public class Recognize {
 
     private Bitmap getImageFromAssetManager(Activity activity) throws IOException {
         AssetManager am = activity.getAssets();
-        InputStream is = am.open("333.jpg");
+        InputStream is = am.open("12.png");
         Bitmap bitmap = BitmapFactory.decodeStream(is);
         return bitmap;
     }
@@ -164,8 +172,8 @@ public class Recognize {
         int cropWidth = bitmap.getWidth() / this.hole;
         int coordinateX = cropWidth * hole;
         int coordinateY = cropHeight * size;
+        android.util.Log.e("width", String.valueOf(bitmap.getWidth()));
         android.util.Log.e("Height", String.valueOf(bitmap.getHeight()));
-        android.util.Log.e("weight", String.valueOf(bitmap.getWidth()));
         android.util.Log.e("cropHeight", String.valueOf(cropHeight));
         android.util.Log.e("cropWidth", String.valueOf(cropWidth));
         android.util.Log.e("coordinateX", String.valueOf(coordinateX));
@@ -176,26 +184,44 @@ public class Recognize {
     }
 
     private Bitmap getNumberInImage(Bitmap bitmap) {
-        Mat mat = new Mat();
-        Utils.bitmapToMat(bitmap, mat);
+        int minX = 10000;
+        int minY = 10000;
+        int maxWidth = 0;
+        int maxHeight = 0;
+
+        imageMat = new Mat();
+        Utils.bitmapToMat(bitmap, imageMat);
 
         //Blur
         Size size = new Size(11, 11);
-        Imgproc.GaussianBlur(mat,mat, size, 0);
+        Imgproc.GaussianBlur(imageMat, imageMat, size, 0);
 
         //Canny
-        Imgproc.Canny(mat, mat, 20, 120);
+        Mat destination = new Mat(imageMat.rows(), imageMat.cols(), imageMat.type());
+        Imgproc.Canny(imageMat, destination, 20, 120);
 
         //FindContours
         List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
         Mat hierarchy = new Mat();
-        Imgproc.findContours(mat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+        Imgproc.findContours(destination, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
         for (int contourIdx = 0; contourIdx < contours.size(); contourIdx++) {
-
+            Rect r = Imgproc.boundingRect(contours.get(contourIdx));
+            int rectWidth = r.width;
+            int rectHeight = r.height;
+            minX = (r.x < minX)? r.x: minX;
+            minY = (r.y < minY)? r.y: minY;
+            maxWidth = (rectWidth > maxWidth)? rectWidth: maxWidth;
+            maxHeight = (rectHeight > maxHeight)? rectHeight: maxHeight;
         }
 
-        return bitmap;
+        android.util.Log.e("minX", String.valueOf(minX));
+        android.util.Log.e("minY", String.valueOf(minY));
+        android.util.Log.e("maxWidth", String.valueOf(maxWidth));
+        android.util.Log.e("maxHeight", String.valueOf(maxHeight));
+
+        Bitmap croppedBitmap = Bitmap.createBitmap(bitmap, minX, minY, maxWidth, maxHeight);
+        return croppedBitmap;
     }
 
     public Bitmap getMImage() {
